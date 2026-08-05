@@ -355,6 +355,12 @@ body{
 </head>
 <body>
 
+<!-- GTM / 메타 픽셀 (noscript 폴백) -->
+<noscript><iframe src="https://www.googletagmanager.com/ns.html?id=GTM-53PX7FSF"
+height="0" width="0" style="display:none;visibility:hidden"></iframe>
+<img height="1" width="1" style="display:none"
+src="https://www.facebook.com/tr?id=1387430733300442&ev=PageView&noscript=1"/></noscript>
+
 <div class="noise"></div>
 
 <!-- 가상 스크롤 래퍼: PC에선 스타일 없음(그대로), 모바일에선 JS가 고정 뷰포트+transform 이동으로 전환 -->
@@ -477,12 +483,12 @@ body{
    예: window.PRICE_API = 'https://phonespot-prices.xxxx.workers.dev'; */
 window.PRICE_API = 'https://phonespot-prices.mazision.workers.dev/';
 window.PRICE_MODEL = '갤럭시 S26';
-/* Google Analytics 4: analytics.google.com에서 속성 생성 후 측정 ID(G-로 시작) 입력.
-   비워두면 추적 없이 동작. 예: window.GA_ID = 'G-ABC123XYZ'; */
+/* Google Tag Manager 컨테이너 ID. 커스텀 이벤트는 dataLayer로 전송됨. 비워두면 비활성 */
+window.GTM_ID = 'GTM-53PX7FSF';
+/* GA4 직접 연결(GTM 없이 쓸 때만). GTM을 쓰는 지금은 비워둠 */
 window.GA_ID = '';
-/* 메타 픽셀: Meta 이벤트 관리자에서 픽셀 ID(숫자) 입력. 비워두면 비활성.
-   예: window.META_PIXEL_ID = '1234567890123456'; */
-window.META_PIXEL_ID = '';
+/* 메타 픽셀 ID */
+window.META_PIXEL_ID = '1387430733300442';
 </script>
 <script>
 (function(){
@@ -1121,8 +1127,17 @@ window.META_PIXEL_ID = '';
 <script>
 /* ==== 방문자 행동 추적 (GA4 + 메타 픽셀) — ID가 비어 있으면 해당 도구는 비활성 ==== */
 (function(){
-  var useGA = !!window.GA_ID, useFB = !!window.META_PIXEL_ID;
-  if(!useGA && !useFB) return;
+  var useGA = !!window.GA_ID, useFB = !!window.META_PIXEL_ID, useGTM = !!window.GTM_ID;
+  if(!useGA && !useFB && !useGTM) return;
+
+  // Google Tag Manager 로드
+  if(useGTM){
+    (function(w,d,s,l,i){w[l]=w[l]||[];w[l].push({'gtm.start':
+    new Date().getTime(),event:'gtm.js'});var f=d.getElementsByTagName(s)[0],
+    j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
+    'https://www.googletagmanager.com/gtm.js?id='+i+dl;f.parentNode.insertBefore(j,f);
+    })(window,document,'script','dataLayer',window.GTM_ID);
+  }
 
   // GA4(gtag) 로드
   if(useGA){
@@ -1151,6 +1166,10 @@ window.META_PIXEL_ID = '';
                  scroll_depth:'ScrollDepth', scene_enter:'SceneEnter', scene_time:'SceneTime'};
   function track(name, params){
     params = params||{};
+    if(useGTM){ try{
+      var ev = {event:name}; for(var k in params) ev[k]=params[k];
+      (window.dataLayer=window.dataLayer||[]).push(ev);
+    }catch(e){} }
     if(useGA){ try{ gtag('event', name, params); }catch(e){} }
     if(useFB){ try{
       fbq('trackCustom', FB_NAME[name]||name, params);
