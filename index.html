@@ -349,6 +349,21 @@ body{
   .result{width:480px}
   .ctas{width:460px}
 }
+/* ---------- S2b: 조건 덜어내기 ---------- */
+.cwrap{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:min(540px,92vw);text-align:center;z-index:12}
+.cwrap .head{position:static;margin:0;opacity:0}
+#c_headA{font-size:clamp(28px,8vw,42px)}
+#c_headB{margin-top:clamp(30px,5.5svh,44px)}
+.c-list{list-style:none;margin:clamp(30px,5.5svh,44px) auto 0;padding:0;display:flex;flex-direction:column;gap:12px;max-width:460px}
+.c-row{display:flex;align-items:center;justify-content:space-between;gap:10px;opacity:0;
+  background:#fff;border-radius:16px;padding:15px 18px;box-shadow:0 10px 26px rgba(29,21,18,.07)}
+.c-bad{position:relative;font-weight:700;font-size:clamp(14px,4vw,19px);letter-spacing:-.03em;color:var(--text);white-space:nowrap;transition:color .25s}
+.c-bad.off{color:rgba(29,21,18,.32)}
+.c-strike{position:absolute;left:-3%;top:52%;width:106%;height:3px;background:var(--accent);border-radius:2px;
+  transform:scaleX(0);transform-origin:left center}
+.c-good{font-weight:700;font-size:clamp(14px,4vw,19px);letter-spacing:-.03em;color:var(--text);white-space:nowrap;opacity:0}
+.c-good b{color:var(--accent)}
+
 /* 모바일: 스크롤 중 비싼 GPU 효과 제거 (프레임 드랍 방지) */
 @media (pointer:coarse){
   .noise{display:none}
@@ -460,6 +475,21 @@ src="https://www.facebook.com/tr?id=1387430733300442&ev=PageView&noscript=1"/></
         </ul>
         <div class="s2-raw" id="s2_raw"><span>KT번이</span><span>109욕</span><span>부무</span><span>차비</span></div>
       </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ S2b : 무리한 조건 → 딱 필요한 만큼만 ============ -->
+<section class="wrap" id="w25" style="height:240svh">
+  <div class="pin">
+    <div class="cwrap">
+      <p class="head" id="c_headA">무리하게 끼워 넣던<br>조건들은</p>
+      <ul class="c-list">
+        <li class="c-row"><span class="c-bad"><i class="c-strike"></i>부가서비스 5~6개?</span><span class="c-good"><b>최소한</b>만</span></li>
+        <li class="c-row"><span class="c-bad"><i class="c-strike"></i>제휴카드 포함 가격?</span><span class="c-good"><b>미포함 가격</b> 그대로</span></li>
+        <li class="c-row"><span class="c-bad"><i class="c-strike"></i>36개월 이상 장기 할부?</span><span class="c-good">일시불 · <b>24개월</b></span></li>
+      </ul>
+      <p class="head" id="c_headB">딱 필요한 <u>만큼만.</u></p>
     </div>
   </div>
 </section>
@@ -764,6 +794,38 @@ window.META_PIXEL_ID = '1387430733300442';
     {x: -4,y:-38,tx:'S26 <span class="blurnum">₩###,###</span>', html:1},
     {x:  3,y: 36,tx:'17프로 <span class="blurnum">₩###,###</span>', html:1}
   ];
+  /* ================= S2b: 조건 덜어내기 ================= */
+  var s2b = {
+    wrap:$('w25'), headA:$('c_headA'), headB:$('c_headB'),
+    rows:[].slice.call(document.querySelectorAll('.c-row')),
+    cur:0
+  };
+  s2b.bads = s2b.rows.map(function(r){ return r.querySelector('.c-bad'); });
+  s2b.strikes = s2b.rows.map(function(r){ return r.querySelector('.c-strike'); });
+  s2b.goods = s2b.rows.map(function(r){ return r.querySelector('.c-good'); });
+  function renderC(p){
+    // 헤드라인: 천천히 등장해 장면 끝까지 유지 (제목 역할)
+    var ha = outC(seg(p,0.08,0.20));
+    s2b.headA.style.opacity = ha.toFixed(3);
+    s2b.headA.style.transform = 'translateY('+((1-ha)*18).toFixed(1)+'px)';
+    // 행 등장 → 취소선 → 폰스팟 기준 등장 (순차)
+    for(var i=0;i<s2b.rows.length;i++){
+      var ri = outC(seg(p, 0.26+i*0.07, 0.34+i*0.07));
+      s2b.rows[i].style.opacity = ri.toFixed(3);
+      s2b.rows[i].style.transform = 'translateY('+((1-ri)*16).toFixed(1)+'px)';
+      var tr = outC(seg(p, 0.50+i*0.085, 0.565+i*0.085));
+      s2b.strikes[i].style.transform = 'scaleX('+tr.toFixed(3)+')';
+      s2b.bads[i].classList.toggle('off', tr>0.6);
+      var gi = outC(seg(p, 0.535+i*0.085, 0.60+i*0.085));
+      s2b.goods[i].style.opacity = gi.toFixed(3);
+      s2b.goods[i].style.transform = 'translateX('+((1-gi)*12).toFixed(1)+'px)';
+    }
+    // 결어: 리스트 아래에 붙어 문장 완성
+    var hb = outC(seg(p,0.82,0.90));
+    s2b.headB.style.opacity = hb.toFixed(3);
+    s2b.headB.style.transform = 'translateY('+((1-hb)*18).toFixed(1)+'px)';
+  }
+
   var s3 = {
     wrap:$('w3'), headA:$('s3_headA'), headB:$('s3_headB'),
     pillsL:$('s3_pills'), final:$('s3_final'), flash:$('s3_flash'), veil:$('s3_veil'),
@@ -868,7 +930,7 @@ window.META_PIXEL_ID = '1387430733300442';
     var vtr=null;
     if(vMode){ vtr=vbodyEl.style.transform; vbodyEl.style.transform='none'; }
     var y=window.pageYOffset||document.documentElement.scrollTop;
-    [s1,s2,s3].forEach(function(s){
+    [s1,s2,s2b,s3].forEach(function(s){
       var r=s.wrap.getBoundingClientRect();
       s.top=r.top+y; s.height=s.wrap.offsetHeight;
     });
@@ -906,7 +968,7 @@ window.META_PIXEL_ID = '1387430733300442';
     // 모바일: 스크롤 도중 높이 변경은 iOS에서 덜컹임·고정바 이탈을 유발 → 스크롤이 멈춘 뒤에만 실행
     if(touchDev && (touching || performance.now()-lastScrollEvT < 200)) return;
     var changed=false;
-    [[s1,1.4],[s2,1.0],[s3,1.0]].forEach(function(e){
+    [[s1,1.4],[s2,1.0],[s2b,1.0],[s3,1.0]].forEach(function(e){
       var sc=e[0];
       if(sc.done && !sc.collapsed && (sc.top+sc.height) <= lastY+2){
         var prevH = sc.wrap.offsetHeight;
@@ -952,7 +1014,7 @@ window.META_PIXEL_ID = '1387430733300442';
       pending = Math.max(pending, Math.min(Y + dY*5, Y + vh*1.35)); // 터치 플릭 모멘텀 보정만
     if(pending <= allowedY + 1){ allowedY = Y; pending = Y; return; }
     var firstTop = Infinity;
-    [s1,s2,s3].forEach(function(sc){
+    [s1,s2,s2b,s3].forEach(function(sc){
       if(!sc.done && allowedY < sc.top + sc.height && pending > sc.top - vh*0.1)
         firstTop = Math.min(firstTop, sc.top - vh*0.1);
     });
@@ -987,7 +1049,7 @@ window.META_PIXEL_ID = '1387430733300442';
     var vh = window.innerHeight;
     var cap = vh * 1.7 * dt;                          // 하향 최대 1.7화면/초
     var target = vY + dy;
-    var zone = null, arr=[s1,s2,s3];
+    var zone = null, arr=[s1,s2,s2b,s3];
     for(var i=0;i<arr.length;i++){
       if(!arr[i].done && vY < arr[i].top + arr[i].height - 2){ zone = arr[i]; break; }
     }
@@ -1027,9 +1089,10 @@ window.META_PIXEL_ID = '1387430733300442';
     var ts=clamp(v*0.035,-2.2,2.2);
     skew += (ts-skew)*0.18;
 
-    var t1=secP(s1), t2=secP(s2), t3=secP(s3);
+    var t1=secP(s1), t2=secP(s2), t2b=secP(s2b), t3=secP(s3);
     if(t1>=0.985) s1.done=true;
     if(t2>=0.985) s2.done=true;
+    if(t2b>=0.985) s2b.done=true;
     if(t3>=0.985) s3.done=true;
     function follow(cur,target){
       var k = 0.07 + Math.min(0.20, Math.abs(target-cur)*0.4);
@@ -1042,6 +1105,7 @@ window.META_PIXEL_ID = '1387430733300442';
     s1.heroCur = follow(s1.heroCur, t1);
     s1.cur = follow(s1.cur, s1.done?1:t1);
     s2.cur = follow(s2.cur, s2.done?1:t2);
+    s2b.cur = follow(s2b.cur, s2b.done?1:t2b);
     s3.cur = follow(s3.cur, s3.done?1:t3);
 
     // 화면 근처에 있거나 값이 아직 움직이는 장면만 그리기 — 모바일 프레임 드랍(드드득) 방지
@@ -1052,6 +1116,7 @@ window.META_PIXEL_ID = '1387430733300442';
       renderS1(s1.cur, s1.heroCur, skew); s1.pRend=s1.cur; s1.hRend=s1.heroCur;
     }
     if(near(s2) || moved(s2)){ renderS2(s2.cur, skew); s2.pRend=s2.cur; }
+    if(near(s2b) || moved(s2b)){ renderC(s2b.cur); s2b.pRend=s2b.cur; }
     if(near(s3) || moved(s3)){ renderS3(s3.cur, skew); s3.pRend=s3.cur; }
 
     if(!closeStart && (lastY+window.innerHeight) > geo.closeTop + window.innerHeight*0.3){
@@ -1076,6 +1141,7 @@ window.META_PIXEL_ID = '1387430733300442';
   if(coarse){
     s1.wrap.style.height='560svh';
     s2.wrap.style.height='400svh';
+    s2b.wrap.style.height='400svh';
     s3.wrap.style.height='560svh';
 
     // ---- 가상 스크롤 모드 켜기 (모션 축소 설정 시엔 네이티브 유지) ----
@@ -1089,7 +1155,7 @@ window.META_PIXEL_ID = '1387430733300442';
     document.body.style.cssText += ';height:100%;overflow:hidden;overscroll-behavior:none';
     window.scrollTo(0,0);
     // 핀을 sticky → transform 에뮬레이션으로 전환
-    [s1,s2,s3].forEach(function(s){
+    [s1,s2,s2b,s3].forEach(function(s){
       var pin = s.wrap.querySelector('.pin');
       pin.style.position = 'relative';
       vPins.push({el:pin, s:s, h:pin.offsetHeight});
@@ -1185,13 +1251,13 @@ window.META_PIXEL_ID = '1387430733300442';
   if(document.fonts && document.fonts.ready) document.fonts.ready.then(function(){ layout(); });
 
   if(reduce){
-    s1.wrap.style.height='100svh'; s2.wrap.style.height='100svh'; s3.wrap.style.height='100svh';
+    s1.wrap.style.height='100svh'; s2.wrap.style.height='100svh'; s2b.wrap.style.height='100svh'; s3.wrap.style.height='100svh';
     layout();
     bar.style.opacity=0;
     s1.cardsL.style.display='none';
     s1.flash.style.display='none'; s3.flash.style.display='none';
     s2.raw.style.display='none'; s3.pillsL.style.display='none';
-    renderS1(1,1,0); renderS2(1,0); renderS3(1,0); renderClose(99);
+    renderS1(1,1,0); renderS2(1,0); renderC(1); renderS3(1,0); renderClose(99);
   }else{
     onScroll(); prevY=lastY;
     addEventListener('scroll', onScroll, {passive:true});
@@ -1298,8 +1364,9 @@ window.META_PIXEL_ID = '1387430733300442';
   var SCENES=[
     {id:'w1',      n:1, name:'1_가격표'},
     {id:'w2',      n:2, name:'2_은어'},
-    {id:'w3',      n:3, name:'3_최종가격'},
-    {id:'closing', n:4, name:'4_클로징'}
+    {id:'w25',     n:3, name:'3_조건'},
+    {id:'w3',      n:4, name:'4_최종가격'},
+    {id:'closing', n:5, name:'5_클로징'}
   ];
   var dwell={}, entered={}, cur=null;
   SCENES.forEach(function(s){ dwell[s.name]=0; });
