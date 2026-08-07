@@ -272,6 +272,7 @@ body{
 }
 .s3-final .head{margin-bottom:26px;padding:0}
 .p-label{font-size:12px;letter-spacing:.14em;color:var(--dim);font-weight:600;margin-bottom:10px}
+.price-cap{margin:10px 0 0;font-size:clamp(13px,3.6vw,16px);color:var(--dim);letter-spacing:-.02em;opacity:0}
 .price{
   font-size:clamp(52px,15.5vw,106px);font-weight:800;letter-spacing:-.05em;line-height:1;white-space:nowrap;
   font-variant-numeric:tabular-nums;color:var(--text);transition:color .45s ease;
@@ -475,7 +476,8 @@ src="https://www.facebook.com/tr?id=1387430733300442&ev=PageView&noscript=1"/></
 
     <div class="s3-final" id="s3_final">
       <p class="head" id="s3_headB">바로 확인할 수 있는 <u>최종 가격</u>으로.</p>
-      <div class="price" id="s3_price"><span id="s3_num">1,290,000</span><span class="won">원</span></div>
+      <div class="price" id="s3_price"><span id="s3_num">1,254,000</span><span class="won">원</span></div>
+      <p class="price-cap" id="s3_cap">오늘 기준 갤럭시 S26 최저가</p>
     </div>
   </div>
 </section>
@@ -765,7 +767,8 @@ window.META_PIXEL_ID = '1387430733300442';
   var s3 = {
     wrap:$('w3'), headA:$('s3_headA'), headB:$('s3_headB'),
     pillsL:$('s3_pills'), final:$('s3_final'), flash:$('s3_flash'), veil:$('s3_veil'),
-    price:$('s3_price'), numEl:$('s3_num'),
+    price:$('s3_price'), numEl:$('s3_num'), cap:$('s3_cap'),
+    endVal:-96000, startVal:1254000,
     pillEls:[], charEls:[], lastVal:1e9, cur:0
   };
 
@@ -822,10 +825,11 @@ window.META_PIXEL_ID = '1387430733300442';
 
     var po = outC(seg(p,0.66,0.72));
     s3.price.style.opacity = po.toFixed(3);
+    s3.cap.style.opacity = po.toFixed(3);
     s3.price.style.transform = 'scale('+(0.9+0.1*po).toFixed(3)+')';
     var pe = seg(p,0.735,0.95);
     var ease = 1 - Math.pow(1-pe, 1.6);
-    var val = Math.round((-480000 + (1-ease)*1770000)/1000)*1000;
+    var val = Math.round((s3.endVal + (1-ease)*(s3.startVal - s3.endVal))/1000)*1000;
     if(val!==s3.lastVal){
       s3.numEl.textContent = (val<0?'-':'')+Math.abs(val).toLocaleString('ko-KR');
       s3.lastVal=val;
@@ -834,6 +838,14 @@ window.META_PIXEL_ID = '1387430733300442';
 
     s3.pillsL.style.transform = 'skewY('+(skew*0.7).toFixed(2)+'deg)';
   }
+
+  // 실시세 연동: S3 최종 가격·캡션 갱신 (fetch 블록에서 호출)
+  window.__setS3Price = function(end, start, capText){
+    s3.endVal = end; s3.startVal = start;
+    if(s3.cap && capText) s3.cap.textContent = capText;
+    s3.lastVal = null;
+    s3.pRend = -1; // 이미 지나간(래치) 상태여도 다음 프레임에 재렌더
+  };
 
   /* ================= 클로징 ================= */
   var closing=$('closing');
@@ -1133,6 +1145,38 @@ window.META_PIXEL_ID = '1387430733300442';
         });
         var il = document.getElementById('s1_imglink');
         if(il && cheapest) il.setAttribute('href', toMall(cheapest.link));
+
+        // ---- S3 최종 가격: 갤럭시 S26 vs 아이폰17 중 전 모델·전 통신사 최저가 ----
+        var CAND = ['갤럭시S26', '아이폰17'];
+        var best = null;
+        (data.models||[]).forEach(function(m){
+          var nm = norm(m);
+          if(!CAND.some(function(c){ return nm.indexOf(c)===0; })) return;
+          (m.deals||[]).forEach(function(d){
+            var n = parseInt((d.price||'').replace(/[^\d-]/g,''), 10);
+            if(isNaN(n)) return;
+            if(!best || n < best.n){
+              var o = parseInt((d.original||'').replace(/[^\d-]/g,''), 10);
+              best = {n:n, orig:(isNaN(o)||o<=0)?1254000:o, name:m.name};
+            }
+          });
+        });
+        if(best && window.__setS3Price){
+          // 모델명에서 용량 토큰(256G 등) 제거
+          var disp = best.name.split(' ').filter(function(t){ return !/^\d+(G|GB|T|TB)$/i.test(t); }).join(' ');
+          var when = '';
+          if(data.updated){
+            var dt = new Date(data.updated);
+            if(!isNaN(dt)){
+              var now = new Date();
+              var hm = ('0'+dt.getHours()).slice(-2)+':'+('0'+dt.getMinutes()).slice(-2);
+              when = (dt.toDateString()===now.toDateString())
+                ? '오늘 '+hm+' 업데이트'
+                : (dt.getMonth()+1)+'월 '+dt.getDate()+'일 '+hm+' 업데이트';
+            }
+          }
+          window.__setS3Price(best.n, best.orig, disp+' 최저가'+(when?' · '+when:''));
+        }
       })
       .catch(function(){ /* 실패 시 고정값 유지 */ });
   }
