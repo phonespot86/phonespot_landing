@@ -60,8 +60,10 @@ docs/                   상세 문서 — 아래 요약보다 자세한 내용�
 ## 추적
 
 GTM(`GTM-53PX7FSF`) 경유로 GA4(`G-LESY5TX0XM`) + 메타 픽셀 + 당근에 전송.
+정성 분석용으로 **Microsoft Clarity**(`y03pzj9oqr`)를 `<head>`에 별도 설치(GTM 미경유).
 
 - `window.GA_ID`는 **반드시 비워둘 것.** 채우면 GTM과 이중 집계된다.
+- GA4는 "얼마나", Clarity는 "왜". Clarity 리플레이·히트맵은 **모바일 가상 스크롤 구간에서 실제와 어긋날 수 있다**(transform 기반이라 DOM 재구성이 부정확). 성능 판단은 실기기로 할 것.
 - 이벤트: `Scene1~5_Enter` / `Scene1~5_click` / `citymall_click` / `kakao_click` / `scroll_depth` / `scene_time`
 - 주요 이벤트(전환): `kakao_click`, `citymall_click`
 - GTM·GA 작업은 **phonespot86@gmail.com** 계정으로 (`?authuser=3`)
