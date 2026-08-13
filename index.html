@@ -95,14 +95,18 @@ body{
 @keyframes heroIn{to{opacity:1;transform:none}}
 @keyframes heroSlide{to{transform:none}}
 
-/* 스크롤 유도 셰브런 — Clarity 리플레이에서 "스크롤해야 하는 줄 모르는" 이탈이 관찰되어 추가.
+/* 스크롤 유도 힌트 — Clarity 리플레이에서 "스크롤해야 하는 줄 모르는" 이탈이 관찰되어 추가.
    .hero 자식이라 스크롤이 시작되면 히어로 페이드에 얹혀 자동으로 사라진다 (JS 연동 불필요).
    pointer-events:none 필수 — 과거 .h-center 오버레이가 클릭을 삼킨 사고와 같은 유형을 막는다 */
 .scroll-cue{
   position:absolute;left:0;right:0;bottom:calc(72px + env(safe-area-inset-bottom));
-  display:flex;justify-content:center;
+  display:flex;flex-direction:column;align-items:center;gap:11px;
   pointer-events:none;opacity:0;
   animation:cueIn .8s var(--ease) 1.8s forwards;
+}
+.scroll-cue span{
+  font-size:12.5px;font-weight:600;letter-spacing:.04em;color:var(--dim);
+  text-shadow:0 2px 14px rgba(237,238,240,.95),0 0 8px rgba(237,238,240,.9);
 }
 .scroll-cue i{
   display:block;width:22px;height:22px;
@@ -460,7 +464,7 @@ src="https://www.facebook.com/tr?id=1387430733300442&ev=PageView&noscript=1"/></
     <div class="veil" id="s1_veil"></div>
     <div class="hero" id="hero">
       <h1><span class="hl">휴대폰 구매,</span><br><span class="hl hl2">왜 이렇게 복잡해야 할까요?</span></h1>
-      <div class="scroll-cue" aria-hidden="true"><i></i></div>
+      <div class="scroll-cue" aria-hidden="true"><span>아래로 스크롤하세요</span><i></i></div>
     </div>
 
     <p class="head h-center" id="s1_intro2" style="font-size:clamp(30px,7.6vw,48px)"><span id="s1_i2a" style="display:inline-block">어려웠던 휴대폰 구매,</span><br><span id="s1_i2b" style="display:inline-block"><b>폰스팟</b>이 이렇게 바꿉니다.</span></p>
