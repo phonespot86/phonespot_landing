@@ -1,0 +1,356 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>폰스팟 실시간 시세판</title>
+<meta name="description" content="오늘 이 순간의 휴대폰 시세. 45개 모델 전 통신사, 30분마다 자동 갱신.">
+<link rel="preload" href="../assets/pretendard-subset.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css" media="print" onload="this.media='all';this.onload=null" crossorigin>
+<style>
+@font-face{
+  font-family:'Pretendard';
+  src:url('../assets/pretendard-subset.woff2') format('woff2-variations'),
+      url('../assets/pretendard-subset.woff2') format('woff2');
+  font-weight:45 930;font-style:normal;font-display:swap;
+}
+
+/* 시세판 — 성지 시세표의 원색을 일부러 버렸다.
+   "우리가 정한 가격"이 아니라 "오늘의 시세"로 읽히게 하는 것이 이 화면의 목적 */
+:root{
+  --bg:#0c0b0a; --panel:#141211; --panel2:#1b1917;
+  --text:#f4f1ee; --dim:rgba(244,241,238,.56); --faint:rgba(244,241,238,.32);
+  --line:rgba(244,241,238,.09);
+  --accent:#ff6a2b; --gain:#37e0a0;
+  --kt:#ff3b47; --skt:#6d8cff; --ul:#ff4fb8;
+  --ease:cubic-bezier(.16,1,.3,1);
+}
+*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html{background:var(--bg)}
+body{
+  background:var(--bg);color:var(--text);
+  font-family:"Pretendard","Pretendard Variable",-apple-system,BlinkMacSystemFont,system-ui,sans-serif;
+  font-weight:500;letter-spacing:-.02em;overflow-x:hidden;
+  padding-bottom:calc(84px + env(safe-area-inset-bottom));
+}
+.num{font-variant-numeric:tabular-nums;font-feature-settings:"tnum" 1}
+
+/* ---------- 보드 헤더 ---------- */
+.board-top{
+  position:sticky;top:0;z-index:40;background:rgba(12,11,10,.94);
+  backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);
+  border-bottom:1px solid var(--line);
+  padding:calc(14px + env(safe-area-inset-top)) 16px 12px;
+}
+.live{display:flex;align-items:center;gap:7px;font-size:10.5px;letter-spacing:.14em;color:var(--faint)}
+.dot{width:6px;height:6px;border-radius:50%;background:var(--gain);animation:blink 2s ease-in-out infinite}
+@keyframes blink{0%,100%{opacity:1;box-shadow:0 0 0 0 rgba(55,224,160,.5)}50%{opacity:.35;box-shadow:0 0 0 5px rgba(55,224,160,0)}}
+h1{font-size:21px;font-weight:800;letter-spacing:-.04em;margin:7px 0 4px}
+.stamp{font-size:12px;color:var(--dim);display:flex;flex-wrap:wrap;gap:4px 8px;align-items:baseline}
+.stamp b{color:var(--text);font-weight:700}
+.stamp .sep{color:var(--faint)}
+
+/* ---------- 컨트롤 ---------- */
+.ctrl{display:flex;gap:6px;overflow-x:auto;padding:12px 16px 4px;scrollbar-width:none}
+.ctrl::-webkit-scrollbar{display:none}
+.chip{
+  flex:none;padding:7px 13px;border-radius:999px;border:1px solid var(--line);
+  background:var(--panel);color:var(--dim);font-size:12.5px;font-weight:600;
+  cursor:pointer;transition:background .18s var(--ease),color .18s var(--ease);
+  font-family:inherit;letter-spacing:-.02em;
+}
+.chip[aria-pressed="true"]{background:var(--text);color:#0c0b0a;border-color:var(--text)}
+.ctrl .spacer{flex:1;min-width:6px}
+
+/* ---------- 보드 ---------- */
+.board{padding:8px 12px 0}
+.legend{
+  display:flex;justify-content:space-between;gap:8px;
+  padding:8px 6px 9px;font-size:10.5px;letter-spacing:.08em;color:var(--faint);
+}
+.row{
+  display:block;width:100%;text-align:left;cursor:pointer;
+  background:var(--panel);border:1px solid var(--line);border-radius:11px;
+  padding:12px 13px;margin-bottom:7px;color:inherit;font-family:inherit;
+  opacity:0;transform:translateY(9px);
+  animation:rowIn .5s var(--ease) forwards;
+}
+@keyframes rowIn{to{opacity:1;transform:none}}
+.row.best{border-color:rgba(255,106,43,.5);background:linear-gradient(180deg,rgba(255,106,43,.09),var(--panel) 60%)}
+.r1{display:flex;align-items:center;gap:7px;margin-bottom:7px}
+.model{font-size:14px;font-weight:700;letter-spacing:-.03em;flex:1;min-width:0;
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.tag{flex:none;font-size:9.5px;font-weight:700;padding:2.5px 6px;border-radius:5px;
+  background:rgba(244,241,238,.09);color:var(--dim);letter-spacing:0}
+.tag.hot{background:rgba(255,106,43,.16);color:var(--accent)}
+.car{flex:none;font-size:12px;font-weight:900;letter-spacing:-.04em}
+.car.KT{color:var(--kt)} .car.SKT{color:var(--skt)} .car.LG{color:var(--ul)}
+.r2{display:flex;align-items:flex-end;justify-content:space-between;gap:10px}
+.pricewrap{display:flex;align-items:baseline;gap:8px;min-width:0}
+.price{font-size:22px;font-weight:800;letter-spacing:-.045em;line-height:1}
+.price.neg{color:var(--gain)}
+.orig{font-size:11.5px;color:var(--faint);text-decoration:line-through}
+.pct{
+  flex:none;font-size:12.5px;font-weight:800;color:var(--accent);
+  padding:4px 8px;border-radius:7px;background:rgba(255,106,43,.12);
+}
+.meta{margin-top:7px;font-size:11px;color:var(--faint);
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+
+/* 계산 내역 — "믿어주세요" 대신 "검산해보세요" */
+.calc{display:none;margin-top:11px;padding-top:11px;border-top:1px dashed var(--line)}
+.row[aria-expanded="true"] .calc{display:block}
+.cline{display:flex;justify-content:space-between;gap:10px;font-size:12px;padding:4px 0;color:var(--dim)}
+.cline b{color:var(--text);font-weight:700}
+.cline.total{border-top:1px solid var(--line);margin-top:5px;padding-top:8px;font-size:13.5px}
+.cline.total b{font-size:15px}
+.hint{margin-top:8px;font-size:10.5px;color:var(--faint);line-height:1.55}
+.goto{
+  display:flex;align-items:center;justify-content:center;gap:5px;margin-top:10px;
+  height:38px;border-radius:9px;background:var(--accent);color:#fff;
+  font-size:13px;font-weight:700;text-decoration:none;
+}
+
+/* ---------- 상태 ---------- */
+.state{padding:34px 20px;text-align:center;color:var(--dim);font-size:13px;line-height:1.7}
+.skel{height:78px;border-radius:11px;background:linear-gradient(90deg,var(--panel),var(--panel2),var(--panel));
+  background-size:200% 100%;animation:sk 1.3s linear infinite;margin-bottom:7px}
+@keyframes sk{to{background-position:-200% 0}}
+
+/* ---------- 신뢰 블록 ---------- */
+.trust,.nots{margin:26px 12px 0;padding:18px 15px;background:var(--panel);border:1px solid var(--line);border-radius:13px}
+.nots{margin-top:14px}
+.trust h2,.nots h2{font-size:14.5px;font-weight:800;letter-spacing:-.035em;margin-bottom:12px}
+.tr{display:flex;gap:9px;padding:9px 0;border-bottom:1px solid var(--line);font-size:12.5px;line-height:1.6;color:var(--dim)}
+.tr:last-of-type{border-bottom:0}
+.tr i{flex:none;font-style:normal;color:var(--accent);font-weight:800}
+.tr b{color:var(--text);font-weight:700}
+.nots li{list-style:none;display:flex;gap:9px;font-size:12.5px;padding:6px 0;color:var(--dim);line-height:1.55}
+.nots li i{flex:none;font-style:normal;color:var(--faint);font-weight:800}
+.nots li b{color:var(--text);font-weight:700}
+.foot{padding:22px 16px calc(20px + env(safe-area-inset-bottom));font-size:10.5px;line-height:1.75;color:var(--faint)}
+.foot b{color:var(--dim)}
+.foot a{color:var(--dim)}
+
+/* ---------- 하단 CTA ---------- */
+.cta{
+  position:fixed;left:0;right:0;bottom:0;z-index:50;display:flex;gap:8px;
+  padding:10px 14px calc(10px + env(safe-area-inset-bottom));
+  background:rgba(12,11,10,.92);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);
+  border-top:1px solid var(--line);
+}
+.cb{flex:1;display:flex;align-items:center;justify-content:center;height:46px;border-radius:999px;
+  font-size:14.5px;font-weight:800;text-decoration:none;letter-spacing:-.03em}
+.cb.k{flex:0 0 34%;background:#fee500;color:#191919}
+.cb.p{background:var(--accent);color:#fff}
+
+@media (pointer:coarse){
+  .board-top,.cta{backdrop-filter:none;-webkit-backdrop-filter:none;background:rgba(12,11,10,.97)}
+}
+@media (prefers-reduced-motion:reduce){
+  .dot,.skel{animation:none}
+  .row{animation:none;opacity:1;transform:none}
+}
+</style>
+</head>
+<body>
+
+<header class="board-top">
+  <div class="live"><span class="dot"></span>LIVE · 실시간 시세</div>
+  <h1>오늘 이 순간의 휴대폰 값</h1>
+  <div class="stamp">
+    <span><b id="stampTime">불러오는 중</b> 기준</span>
+    <span class="sep">·</span><span id="stampAgo"></span>
+    <span class="sep">·</span><span id="stampNext"></span>
+  </div>
+</header>
+
+<nav class="ctrl" id="ctrl">
+  <button class="chip" data-f="all" aria-pressed="true">전체</button>
+  <button class="chip" data-f="samsung" aria-pressed="false">삼성</button>
+  <button class="chip" data-f="apple" aria-pressed="false">애플</button>
+  <span class="spacer"></span>
+  <button class="chip" id="sortBtn" aria-pressed="true">할인율 높은순</button>
+</nav>
+
+<main class="board">
+  <div class="legend"><span id="cnt">시세 불러오는 중</span><span>번호이동 · 공시지원금 기준</span></div>
+  <div id="rows">
+    <div class="skel"></div><div class="skel"></div><div class="skel"></div>
+    <div class="skel"></div><div class="skel"></div>
+  </div>
+</main>
+
+<section class="trust">
+  <h2>이 숫자는 어디서 오나요</h2>
+  <div class="tr"><i>①</i><div><b>씨티몰 등록가를 그대로 받아옵니다.</b> 폰스팟이 손으로 적는 표가 아닙니다. 판매 채널의 실제 등록 가격을 그대로 가져옵니다.</div></div>
+  <div class="tr"><i>②</i><div><b>30분마다 자동으로 갱신됩니다.</b> 위에 적힌 시각이 마지막 갱신 시각입니다. 어제 가격을 오늘 가격인 것처럼 두지 않습니다.</div></div>
+  <div class="tr"><i>③</i><div><b>계산을 펼쳐 볼 수 있습니다.</b> 각 줄을 누르면 출고가에서 얼마가 빠져 이 값이 나왔는지 보입니다. 직접 검산해보세요.</div></div>
+  <div class="tr"><i>④</i><div><b>마이너스 가격은 오타가 아닙니다.</b> 지원금이 출고가보다 큰 경우입니다. 기기값을 다 치르고도 남는 금액을 현금으로 돌려받는 구조입니다.</div></div>
+</section>
+
+<section class="nots">
+  <h2>대신, 폰스팟이 하지 않는 것</h2>
+  <ul>
+    <li><i>✕</i><div>부가서비스 5~6개 끼워넣기 — <b>최소한만</b> 유지합니다</div></li>
+    <li><i>✕</i><div>제휴카드 할인을 포함한 가격 표기 — <b>미포함 가격</b> 그대로 보여드립니다</div></li>
+    <li><i>✕</i><div>36개월 장기 할부로 월 부담을 낮춰 보이게 하기 — <b>일시불 · 24개월</b>까지만</div></li>
+    <li><i>✕</i><div>조건은 방문해서 알려주기 — <b>이 화면이 전부</b>입니다</div></li>
+  </ul>
+</section>
+
+<footer class="foot">
+  <p>시세는 일자·조건에 따라 변동됩니다. 표시 가격은 번호이동·공시지원금 기준이며 요금제 유지 조건이 붙습니다. 실제 가입 조건은 상담 시 다시 안내드립니다.</p>
+  <p style="margin-top:12px"><b>주식회사 휴대폰성지폰스팟</b> · 대표 이헌석<br>
+  사업자등록번호 707-81-03825 · 통신판매업 2025-안양동안-0943<br>
+  경기도 안양시 동안구 시민대로 398, 인덕원역 더리브 디하우트 공장동 523호<br>
+  <a href="https://ictmarket.or.kr:8443/precon/pop_CertIcon.do?PRECON_REQ_ID=PRE0000194479&amp;YN=1" target="_blank" rel="noopener">통신판매 사전승낙서 확인 &rsaquo;</a></p>
+</footer>
+
+<div class="cta">
+  <a class="cb k" href="https://pf.kakao.com/_hZPcG/chat" target="_blank" rel="noopener">상담</a>
+  <a class="cb p" href="https://citymall.co.kr/pb?utm_source=board&utm_medium=button&utm_campaign=bot_bar" target="_blank" rel="noopener">전체 시세 보기</a>
+</div>
+
+<script>
+(function(){
+  var API='https://phonespot-prices.mazision.workers.dev/';
+  var REFRESH_MIN=30;
+  var reduce=matchMedia('(prefers-reduced-motion: reduce)').matches;
+  function $(id){return document.getElementById(id)}
+  var deals=[], filter='all', sortBy='pct', updatedAt=null;
+
+  function n(s){var m=String(s==null?'':s).replace(/[^0-9-]/g,'');return (m===''||m==='-')?null:parseInt(m,10)}
+  function won(v){return (v<0?'-':'')+Math.abs(v).toLocaleString('ko-KR')+'원'}
+  function esc(s){return String(s).replace(/[&<>"]/g,function(c){
+    return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c];
+  })}
+  function maker(name){
+    if(/아이폰/.test(name)) return 'apple';
+    if(/갤럭시/.test(name)) return 'samsung';
+    return 'etc';
+  }
+  function pad(x){return x<10?'0'+x:''+x}
+
+  /* 시각 표기 — 이 화면 신뢰의 핵심 장치 */
+  function paintTime(){
+    if(!updatedAt) return;
+    var d=updatedAt, now=new Date();
+    var sameDay=d.toDateString()===now.toDateString();
+    $('stampTime').textContent=(sameDay?'오늘':(d.getMonth()+1)+'월 '+d.getDate()+'일')
+      +' '+pad(d.getHours())+':'+pad(d.getMinutes());
+    var mins=Math.max(0,Math.floor((now-d)/60000));
+    $('stampAgo').textContent=(mins<1?'방금 갱신':mins+'분 전 갱신');
+    var left=REFRESH_MIN-(mins%REFRESH_MIN);
+    $('stampNext').textContent='다음 갱신 '+left+'분 후';
+  }
+
+  /* 숫자 롤업 — 방금 찍힌 값으로 읽히게 */
+  function roll(el,to){
+    if(reduce){el.textContent=won(to);return}
+    var from=(to>=0)?Math.round(to*0.72):Math.round(to*1.4), t0=null, dur=620;
+    function step(t){
+      if(t0===null)t0=t;
+      var p=Math.min(1,(t-t0)/dur), e=1-Math.pow(1-p,3);
+      el.textContent=won(Math.round(from+(to-from)*e));
+      if(p<1) requestAnimationFrame(step);
+    }
+    requestAnimationFrame(step);
+  }
+
+  function rowHTML(d,i){
+    var disc=(d.origN!=null&&d.priceN!=null)?d.origN-d.priceN:null;
+    var opened=/\(개봉\)/.test(d.name);
+    var totalStyle=(d.priceN<0)?' style="color:var(--gain)"':'';
+    return '<button class="row'+(i===0?' best':'')+'" aria-expanded="false" style="animation-delay:'
+      +Math.min(i*28,420)+'ms">'
+      +'<div class="r1">'
+        +'<span class="model">'+esc(d.name.replace('(개봉)',''))+'</span>'
+        +(opened?'<span class="tag">개봉</span>':'')
+        +(i===0?'<span class="tag hot">'+(sortBy==='pct'?'할인율 1위':'오늘 최저가')+'</span>':'')
+        +'<span class="car '+d.carrier+'">'+(d.carrier==='LG'?'U+':d.carrier)+'</span>'
+      +'</div>'
+      +'<div class="r2">'
+        +'<span class="pricewrap">'
+          +'<span class="price num'+(d.priceN<0?' neg':'')+'" data-to="'+d.priceN+'">'+won(d.priceN)+'</span>'
+          +'<s class="orig num">'+esc(d.original)+'</s>'
+        +'</span>'
+        +'<span class="pct num">'+esc(d.pct)+'</span>'
+      +'</div>'
+      +'<div class="meta">'+esc(d.route)+' · '+esc(d.plan||'요금제 조건 있음')+'</div>'
+      +'<div class="calc">'
+        +'<div class="cline"><span>출고가</span><b class="num">'+esc(d.original)+'</b></div>'
+        +(disc!=null?'<div class="cline"><span>지원금 · 할인 합계</span><b class="num" style="color:var(--accent)">-'
+          +disc.toLocaleString('ko-KR')+'원</b></div>':'')
+        +'<div class="cline total"><span>실구매가</span><b class="num"'+totalStyle+'>'+won(d.priceN)+'</b></div>'
+        +'<p class="hint">'+(d.priceN<0
+            ? '지원금이 출고가보다 커서, 기기값을 다 치르고 '+Math.abs(d.priceN).toLocaleString('ko-KR')
+              +'원이 남습니다. 남는 금액은 현금으로 돌려드립니다.'
+            : '출고가에서 지원금과 자체할인을 뺀 값입니다. 제휴카드 할인은 포함하지 않았습니다.')+'</p>'
+        +'<a class="goto" href="'+esc(d.link)+'" target="_blank" rel="noopener">이 조건 자세히 보기 &rsaquo;</a>'
+      +'</div>'
+    +'</button>';
+  }
+
+  function render(){
+    var list=deals.filter(function(d){return filter==='all'||d.maker===filter});
+    list.sort(sortBy==='pct'
+      ? function(a,b){return b.pctN-a.pctN}
+      : function(a,b){return a.priceN-b.priceN});
+
+    $('cnt').textContent=list.length+'개 시세 · 전 통신사';
+    var box=$('rows');
+    if(!list.length){box.innerHTML='<div class="state">해당 조건의 시세가 없습니다.</div>';return}
+
+    box.innerHTML=list.slice(0,40).map(rowHTML).join('');
+    [].forEach.call(box.querySelectorAll('.price'),function(el,i){
+      var to=parseInt(el.getAttribute('data-to'),10);
+      setTimeout(function(){roll(el,to)},Math.min(i*28,420)+90);
+    });
+  }
+
+  /* 행 펼치기 — 링크 클릭은 통과시킨다 */
+  $('rows').addEventListener('click',function(ev){
+    if(ev.target.closest('a')) return;
+    var r=ev.target.closest('.row'); if(!r) return;
+    r.setAttribute('aria-expanded', r.getAttribute('aria-expanded')==='true'?'false':'true');
+  });
+
+  $('ctrl').addEventListener('click',function(ev){
+    var c=ev.target.closest('.chip'); if(!c) return;
+    if(c.id==='sortBtn'){
+      sortBy=(sortBy==='pct')?'price':'pct';
+      c.textContent=(sortBy==='pct')?'할인율 높은순':'가격 낮은순';
+      render(); return;
+    }
+    filter=c.getAttribute('data-f');
+    [].forEach.call(document.querySelectorAll('.chip[data-f]'),function(b){
+      b.setAttribute('aria-pressed', String(b===c));
+    });
+    render();
+  });
+
+  fetch(API).then(function(r){return r.json()}).then(function(data){
+    updatedAt=new Date(data.updated);
+    (data.models||[]).forEach(function(m){
+      (m.deals||[]).forEach(function(d){
+        var p=n(d.price);
+        if(p===null) return;
+        deals.push({
+          name:m.name, maker:maker(m.name), carrier:d.carrier, route:d.route,
+          plan:d.plan, pct:d.pct, pctN:n(d.pct)||0, priceN:p,
+          original:d.original, origN:n(d.original), link:d.link
+        });
+      });
+    });
+    paintTime(); setInterval(paintTime,30000);
+    render();
+  }).catch(function(){
+    $('rows').innerHTML='<div class="state">시세를 불러오지 못했습니다.<br>잠시 후 다시 시도해주세요.</div>';
+    $('stampTime').textContent='연결 실패';
+    $('cnt').textContent='';
+  });
+})();
+</script>
+</body>
+</html>
