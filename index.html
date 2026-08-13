@@ -87,9 +87,13 @@ body{
 }
 .hero h1{font-size:clamp(38px,10.5vw,48px);font-weight:700;line-height:1.35;letter-spacing:-.045em;word-break:keep-all;text-wrap:balance;padding:0 22px;text-shadow:0 2px 24px rgba(237,238,240,.95),0 0 10px rgba(237,238,240,.9)}
 .hero h1 b{color:var(--accent);font-weight:700}
-.hero .hl{display:inline-block;opacity:0;transform:translateY(16px);animation:heroIn .7s var(--ease) forwards;animation-delay:.15s}
-.hero .hl2{animation-delay:.95s}
+/* LCP 대응: 1행(.hl)은 opacity:0 없이 시작해야 크롬이 LCP 후보로 인정한다.
+   opacity:0 상태로 첫 페인트된 요소는 이후 보이게 돼도 LCP 후보로 복귀하지 않음.
+   → 1행은 transform만 애니메이션(heroSlide), 2행은 기존 페이드인(heroIn) 유지. */
+.hero .hl{display:inline-block;opacity:1;transform:translateY(16px);animation:heroSlide .7s var(--ease) forwards;animation-delay:.15s}
+.hero .hl2{opacity:0;animation:heroIn .7s var(--ease) forwards;animation-delay:.95s}
 @keyframes heroIn{to{opacity:1;transform:none}}
+@keyframes heroSlide{to{transform:none}}
 
 /* ---------- S1: 카드 & 토큰 ---------- */
 .layer{position:absolute;inset:0;will-change:transform}
