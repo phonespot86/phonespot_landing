@@ -1002,7 +1002,25 @@ window.META_PIXEL_ID = '1387430733300442';
   var MOB_GLIDE = 1.8;
   var PC_SPEED  = REVISIT ? 999 : 1.15;
 
+  /* ---- iOS 상단 바 탭(맨 위로) 대응 ----
+     가상 스크롤이 문서 스크롤을 죽여버려서 iOS가 끌어당길 대상이 없다. 그래서
+     상단 바를 눌러도 아무 일이 안 일어난다. 이 탭에 대응하는 JS 이벤트는 없으므로
+     문서에 보이지 않는 '미끼' 스크롤 영역을 두고, 그게 0쪽으로 끌려가는 걸 보고
+     역으로 알아낸다. 손가락 입력은 기존 touchmove preventDefault가 계속 막는다.
+
+     ** 문제 생기면 STB_ENABLE=false 한 줄로 즉시 무력화된다. **
+     ?stb=0 으로도 끌 수 있다(재배포 없이 실기기에서 비교하려고).
+     안드로이드엔 이 제스처 자체가 없어서 iOS에서만 켠다. */
+  var STB_ENABLE = true;
+  var STB_SPACER = 2400;   // 미끼 문서 높이(px). 고정값이라 URL 바 접힘에도 재계산이 필요 없다
+  var STB_PARK   = 600;    // 네이티브 scrollTop을 항상 세워둘 위치. 0이면 탭해도 이벤트가 안 뜬다
+
   var vMode=false, vY=0, vVel=0, vMaxY=0, vbodyEl=null, vPins=[];
+  var stbOn=false, stbWant=0, stbGo=false, stbFrom=0, stbT0=0;
+  function stbTop(){                       // 상단 바 탭 감지 → 맨 위로
+    if(vY <= 0) return;
+    stbGo = true; stbFrom = vY; stbT0 = performance.now(); vVel = 0;
+  }
   function layout(){
     var vtr=null;
     if(vMode){ vtr=vbodyEl.style.transform; vbodyEl.style.transform='none'; }
@@ -1065,6 +1083,9 @@ window.META_PIXEL_ID = '1387430733300442';
   var s3Held=false, s3HoldUntil=0, holdY=0;
   var touching=false, touchEndT=-1e9, lastScrollEvT=0;
   var touchDev = matchMedia('(pointer: coarse)').matches;
+  // iPadOS 13+는 platform이 'MacIntel'로 나와서 터치 포인트 수로 한 번 더 거른다
+  var IS_IOS = /iP(hone|od|ad)/.test(navigator.userAgent) ||
+               (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
   addEventListener('touchstart',function(){touching=true;},{passive:true});
   addEventListener('touchend',function(){touching=false;touchEndT=performance.now();},{passive:true});
   function governor(now){
@@ -1143,8 +1164,14 @@ window.META_PIXEL_ID = '1387430733300442';
     if(!s3Held && s3.cur >= 0.945 && vY > s3.top && vY < s3.top + s3.height){
       s3Held = true; s3HoldUntil = now + 270; vVel = 0;
     }
+    // 상단 바 탭 → 맨 위로 (관성보다 우선)
+    if(stbGo){
+      var sk = Math.min(1, (now - stbT0)/420);
+      setVY(stbFrom * Math.pow(1-sk, 3));    // 빠르게 출발해 부드럽게 멈춘다
+      if(sk >= 1) stbGo = false;
+    }
     // 관성
-    if(!touching && vVel){
+    else if(!touching && vVel){
       vVel *= Math.exp(-dt*MOB_GLIDE);
       if(Math.abs(vVel) < 8) vVel = 0;
       else vApply(vVel*dt, dt);
@@ -1231,8 +1258,33 @@ window.META_PIXEL_ID = '1387430733300442';
     var vport = document.getElementById('vport');
     vport.style.cssText = 'position:fixed;inset:0;overflow:hidden;touch-action:none';
     vbodyEl.style.willChange = 'transform';
-    document.documentElement.style.cssText += ';height:100%;overflow:hidden;overscroll-behavior:none';
-    document.body.style.cssText += ';height:100%;overflow:hidden;overscroll-behavior:none';
+    stbOn = STB_ENABLE && IS_IOS && !/[?&]stb=0/.test(location.search);
+    window.__STB = stbOn;
+    if(stbOn){
+      // 문서를 살려둔다. #vport가 fixed로 화면을 덮고 있어 스페이서는 보이지 않는다
+      // (visibility:hidden은 자리는 그대로 차지한다).
+      var sp = document.createElement('div');
+      sp.id = 'vstb';
+      sp.style.cssText = 'height:'+STB_SPACER+'px;visibility:hidden;pointer-events:none';
+      document.body.appendChild(sp);
+      document.documentElement.style.cssText += ';overscroll-behavior:none';
+      document.body.style.cssText += ';overscroll-behavior:none';
+      // 항상 STB_PARK에 세워둔다. vY가 0일 때도 세워두는 편이 안전하다 —
+      // scrollTop이 0이면 그 자리에서 당겨서 새로고침이 걸릴 수 있다.
+      setTimeout(function(){ stbWant = STB_PARK; window.scrollTo(0, STB_PARK); }, 0);
+      addEventListener('scroll', function(){
+        if(!stbOn || stbWant <= 0) return;
+        var y = window.pageYOffset || document.documentElement.scrollTop || 0;
+        if(y < stbWant*0.5){          // 세워둔 위치에서 0쪽으로 끌려감 = 상단 바 탭
+          stbWant = 0;                // 애니메이션 도중 재주차가 iOS와 싸우지 않게 잠근다
+          stbTop();
+          setTimeout(function(){ stbWant = STB_PARK; window.scrollTo(0, STB_PARK); }, 600);
+        }
+      }, {passive:true});
+    } else {
+      document.documentElement.style.cssText += ';height:100%;overflow:hidden;overscroll-behavior:none';
+      document.body.style.cssText += ';height:100%;overflow:hidden;overscroll-behavior:none';
+    }
     window.scrollTo(0,0);
     // 핀을 sticky → transform 에뮬레이션으로 전환
     [s1,s2,s2b,s3].forEach(function(s){
@@ -1243,7 +1295,7 @@ window.META_PIXEL_ID = '1387430733300442';
     // 터치 입력: 드래그 1:1(속도 상한 내) + 플릭 관성
     var tpY=0, tpT=0;
     document.addEventListener('touchstart', function(e){
-      vVel = 0;
+      vVel = 0; stbGo = false;               // 손으로 잡으면 맨위로 애니메이션 취소
       tpY = e.touches[0].clientY; tpT = performance.now();
     }, {passive:true});
     document.addEventListener('touchmove', function(e){
