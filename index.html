@@ -974,14 +974,33 @@ window.META_PIXEL_ID = '1387430733300442';
   var bar=$('bar'), ctaBar=$('ctaBar');
   var geo={}, lastY=0, prevY=0, skew=0, docH=1;
 
-  /* ---- 모바일 스크롤 체감 튜닝 (이 3개만 만지면 된다) ----
-     MOB_SPEED : 하향 진행 상한. 화면/초. 클수록 빨리 내려간다.
+  /* ---- 재방문자 판정: 속도 상한을 처음부터 풀어준다 ----
+     상한은 '최대 속도'만 막을 뿐 천천히 볼 자유는 그대로 남긴다. 그래서 이미
+     한 번 본 사람에게 계속 씌워둘 이유가 없다 — 만료 기간도 두지 않는다.
+     저장이 막힌 환경(사파리 프라이빗 등)은 첫 방문으로 취급해 안전한 쪽으로 떨어진다.
+     ?fast=1 / ?fast=0 으로 강제 지정 가능 (실기기 확인용). */
+  var REVISIT = (function(){
+    var q = /[?&]fast=([01])/.exec(location.search);
+    if(q) return q[1] === '1';
+    try{
+      var seen = localStorage.getItem('ps_seen');
+      localStorage.setItem('ps_seen', Date.now());
+      return !!seen;
+    }catch(e){ return false; }
+  })();
+  window.__FAST = REVISIT;
+
+  /* ---- 스크롤 체감 튜닝 (이 값들만 만지면 된다) ----
+     MOB_SPEED : 모바일 하향 진행 상한. 화면/초. 클수록 빨리 내려간다.
      MOB_PROG  : 연출 진행 상한. 진행률/초. 큰 플릭·섹션 접힘 같은 점프에서만 걸린다.
                  프레임 수가 아니라 시간 기준이라 60Hz·120Hz가 같은 속도로 재생된다.
-     MOB_GLIDE : 플릭 관성 감쇠 계수. 작을수록 손을 뗀 뒤 오래 미끄러진다. */
-  var MOB_SPEED = 3.0;
-  var MOB_PROG  = 1.6;
+     MOB_GLIDE : 플릭 관성 감쇠 계수. 작을수록 손을 뗀 뒤 오래 미끄러진다.
+     PC_SPEED  : PC 하향 진행 상한. 화면/초.
+     999는 사실상 무제한이다. Infinity를 쓰지 않는 건 vh가 0일 때 NaN이 되기 때문. */
+  var MOB_SPEED = REVISIT ? 999 : 3.0;
+  var MOB_PROG  = REVISIT ? 4.0 : 1.6;
   var MOB_GLIDE = 1.8;
+  var PC_SPEED  = REVISIT ? 999 : 1.15;
 
   var vMode=false, vY=0, vVel=0, vMaxY=0, vbodyEl=null, vPins=[];
   function layout(){
@@ -1078,7 +1097,7 @@ window.META_PIXEL_ID = '1387430733300442';
     });
     if(firstTop === Infinity){ allowedY = pending; return; }      // 완료 구간·클로징은 자유
     if(allowedY < firstTop) allowedY = Math.min(pending, firstTop); // 완료 구간은 즉시 통과
-    allowedY = Math.min(pending, allowedY + vh*(touchDev?1.9:1.15)*dt); // 모바일 1.9 / PC 1.15 화면/s
+    allowedY = Math.min(pending, allowedY + vh*PC_SPEED*dt);      // 모바일은 위에서 return하므로 PC 전용
     gPrevY = Y;
     if(Math.abs(Y - allowedY) > 1){
       window.scrollTo(0, allowedY);
